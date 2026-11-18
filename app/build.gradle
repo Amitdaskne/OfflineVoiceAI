@@ -1,0 +1,20 @@
+plugins { id 'com.android.application' }
+android {
+    namespace 'com.amit.voiceai'
+    compileSdk 34
+    defaultConfig {
+        applicationId "com.amit.voiceai"
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
+    aaptOptions { noCompress "bin" } // Model compress nahi hona chahiye
+}
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.11.0'
+    
+    // MediaPipe LLM Inference API (Offline AI)
+    implementation 'com.google.mediapipe:tasks-genai:0.10.14'
+}
