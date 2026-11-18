@@ -8,8 +8,13 @@
         android:textStyle="bold" android:layout_gravity="center" android:layout_marginTop="20dp"/>
         
     <TextView android:id="@+id/tvStatus" android:layout_width="wrap_content" android:layout_height="wrap_content"
-        android:text="Loading AI Model..." android:textColor="@color/text_gray"
-        android:layout_gravity="center" android:layout_marginTop="8dp"/>
+        android:text="Please select the AI Model (.task file)" android:textColor="@color/text_gray"
+        android:layout_gravity="center" android:layout_marginTop="8dp" android:gravity="center"/>
+
+    <!-- Model Selection Button -->
+    <Button android:id="@+id/btnSelectModel" android:layout_width="match_parent"
+        android:layout_height="55dp" android:text="SELECT MODEL FILE" android:textColor="@color/bg_dark"
+        android:backgroundTint="@color/ai_blue" android:layout_marginTop="16dp"/>
 
     <ScrollView android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"
         android:layout_marginTop="24dp" android:scrollbars="none">
@@ -30,5 +35,5 @@
     <ImageView android:id="@+id/btnMic" android:layout_width="80dp" android:layout_height="80dp"
         android:src="@android:drawable/ic_btn_speak_now" android:background="@drawable/bg_mic_button"
         android:padding="20dp" android:layout_gravity="center" android:layout_marginBottom="32dp"
-        android:tint="@color/bg_dark"/>
+        android:tint="@color/bg_dark" android:alpha="0.5" android:enabled="false"/>
 </LinearLayout>

@@ -3,13 +3,17 @@ package com.amit.voiceai;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Bundle;
 import android.speech.RecognizerIntent;
 import android.speech.tts.TextToSpeech;
 import android.view.View;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
@@ -34,6 +38,19 @@ public class MainActivity extends AppCompatActivity {
     private TextToSpeech tts;
     private TextView tvUserText, tvAiText, tvStatus;
     private ImageView btnMic;
+    private Button btnSelectModel;
+
+    private File modelFile;
+
+    // File Picker Launcher
+    private final ActivityResultLauncher<String[]> filePicker = registerForActivityResult(
+            new ActivityResultContracts.OpenDocument(),
+            uri -> {
+                if (uri != null) {
+                    copyModelToInternalStorage(uri);
+                }
+            }
+    );
 
     @Override
     protected void onCreate(Bundle b) {
@@ -44,39 +61,65 @@ public class MainActivity extends AppCompatActivity {
         tvAiText = findViewById(R.id.tvAiText);
         tvStatus = findViewById(R.id.tvStatus);
         btnMic = findViewById(R.id.btnMic);
+        btnSelectModel = findViewById(R.id.btnSelectModel);
+
+        modelFile = new File(getFilesDir(), "gemma_model.task");
 
         tts = new TextToSpeech(this, status -> {
-            if (status == TextToSpeech.SUCCESS) {
-                tts.setLanguage(Locale.US);
-            }
+            if (status == TextToSpeech.SUCCESS) tts.setLanguage(Locale.US);
         });
 
-        initializeAI();
+        // Agar model pehle se copy hai, toh direct load karo
+        if (modelFile.exists()) {
+            initializeAI();
+        } else {
+            tvStatus.setText("Model not found. Please select a .task file.");
+        }
+
+        btnSelectModel.setOnClickListener(v -> filePicker.launch(new String[]{"*/*"}));
 
         btnMic.setOnClickListener(v -> {
             if (llmInference == null) {
-                Toast.makeText(this, "AI Model is still loading...", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "AI Model is not loaded yet!", Toast.LENGTH_SHORT).show();
                 return;
             }
             checkPermissionAndListen();
         });
     }
 
+    private void copyModelToInternalStorage(Uri sourceUri) {
+        tvStatus.setText("Copying model to app storage... Please wait.");
+        btnSelectModel.setEnabled(false);
+
+        new Thread(() -> {
+            try (InputStream is = getContentResolver().openInputStream(sourceUri);
+                 FileOutputStream os = new FileOutputStream(modelFile)) {
+                
+                byte[] buffer = new byte[8192];
+                int length;
+                while ((length = is.read(buffer)) > 0) {
+                    os.write(buffer, 0, length);
+                }
+                os.flush();
+
+                runOnUiThread(() -> {
+                    tvStatus.setText("Model copied! Loading AI...");
+                    initializeAI();
+                });
+            } catch (Exception e) {
+                runOnUiThread(() -> {
+                    tvStatus.setText("Copy failed: " + e.getMessage());
+                    btnSelectModel.setEnabled(true);
+                });
+            }
+        }).start();
+    }
+
     private void initializeAI() {
         new Thread(() -> {
             try {
-                // 1. Target file in internal storage
-                File modelFile = new File(getFilesDir(), "gemma2-2b-it-cpu-int4.bin");
-
-                // 2. Copy from Assets to Internal Storage if not already done
-                if (!modelFile.exists()) {
-                    runOnUiThread(() -> tvStatus.setText("Copying model to internal storage..."));
-                    copyAssetToFile("gemma2-2b-it-cpu-int4.bin", modelFile);
-                }
-
-                runOnUiThread(() -> tvStatus.setText("Loading AI Model..."));
-
-                // 3. Initialize LLM
+                runOnUiThread(() -> tvStatus.setText("Loading AI Model into memory..."));
+                
                 LlmInferenceOptions options = LlmInferenceOptions.builder()
                         .setModelPath(modelFile.getAbsolutePath())
                         .setMaxTokens(1000)
@@ -84,23 +127,16 @@ public class MainActivity extends AppCompatActivity {
 
                 llmInference = LlmInference.createFromOptions(this, options);
 
-                runOnUiThread(() -> tvStatus.setText("AI Ready! Tap mic to speak."));
+                runOnUiThread(() -> {
+                    tvStatus.setText("AI Ready! Tap mic to speak.");
+                    btnSelectModel.setVisibility(View.GONE); // Hide select button once loaded
+                    btnMic.setAlpha(1f);
+                    btnMic.setEnabled(true);
+                });
             } catch (Exception e) {
-                runOnUiThread(() -> tvStatus.setText("Model load failed: " + e.getMessage()));
+                runOnUiThread(() -> tvStatus.setText("Failed to load: " + e.getMessage()));
             }
         }).start();
-    }
-
-    private void copyAssetToFile(String assetName, File destFile) throws Exception {
-        InputStream is = getAssets().open(assetName);
-        FileOutputStream os = new FileOutputStream(destFile);
-        byte[] buffer = new byte[8192];
-        int length;
-        while ((length = is.read(buffer)) > 0) {
-            os.write(buffer, 0, length);
-        }
-        os.close();
-        is.close();
     }
 
     private void checkPermissionAndListen() {
@@ -167,9 +203,6 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (tts != null) {
-            tts.stop();
-            tts.shutdown();
-        }
+        if (tts != null) { tts.stop(); tts.shutdown(); }
     }
 }

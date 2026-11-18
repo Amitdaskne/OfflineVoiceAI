@@ -8,13 +8,6 @@ jobs:
       - uses: actions/setup-java@v4
         with: { distribution: 'temurin', java-version: '17' }
       
-      - name: Download Gemma Model from Hugging Face
-        run: |
-          mkdir -p app/src/main/assets
-          # Hugging Face se direct download (No login required)
-          curl -L -o app/src/main/assets/gemma2-2b-it-cpu-int4.bin "https://huggingface.co/litert-community/Gemma2-2B-Instruct/resolve/main/gemma2-2b-it-cpu-int4.bin?download=true"
-          ls -lh app/src/main/assets/
-          
       - name: Build APK
         run: |
           wget -q https://services.gradle.org/distributions/gradle-8.2-bin.zip
