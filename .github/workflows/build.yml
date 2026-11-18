@@ -8,11 +8,16 @@ jobs:
       - uses: actions/setup-java@v4
         with: { distribution: 'temurin', java-version: '17' }
       
-      - name: Download Gemma 2B Model (Offline AI)
+      - name: Download and Extract Gemma Task Model
         run: |
           mkdir -p app/src/main/assets
-          # MediaPipe Compatible Gemma-2B (Int4) Model download
-          curl -L -o app/src/main/assets/gemma2-2b-it-cpu-int4.task "https://huggingface.co/MediaPipe/gemma2-2b-it-cpu-int4/resolve/main/gemma2-2b-it-cpu-int4.task"
+          # Kaggle se sahi .task archive download karo
+          curl -L -o gemma.tar.gz "https://www.kaggle.com/api/v1/models/google/gemma/tfLite/gemma-2b-it-gpu-int4/1/download"
+          # Extract karo
+          tar -xzf gemma.tar.gz
+          # Jo bhi .task file nikli hai usko assets me daal do
+          find . -name "*.task" -exec cp {} app/src/main/assets/gemma-2b-it-gpu-int4.task \;
+          ls -lh app/src/main/assets/
           
       - name: Build APK
         run: |
