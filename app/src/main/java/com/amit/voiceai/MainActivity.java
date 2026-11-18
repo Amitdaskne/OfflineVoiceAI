@@ -20,6 +20,8 @@ import com.google.mediapipe.tasks.genai.llminference.LlmInference;
 import com.google.mediapipe.tasks.genai.llminference.LlmInference.LlmInferenceOptions;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Locale;
 
@@ -43,17 +45,14 @@ public class MainActivity extends AppCompatActivity {
         tvStatus = findViewById(R.id.tvStatus);
         btnMic = findViewById(R.id.btnMic);
 
-        // 1. Initialize Offline TTS
         tts = new TextToSpeech(this, status -> {
             if (status == TextToSpeech.SUCCESS) {
-                tts.setLanguage(Locale.US); // Hindi ke liye Locale("hi", "IN") use karein
+                tts.setLanguage(Locale.US);
             }
         });
 
-        // 2. Initialize Offline LLM
         initializeAI();
 
-        // 3. Mic Button Click
         btnMic.setOnClickListener(v -> {
             if (llmInference == null) {
                 Toast.makeText(this, "AI Model is still loading...", Toast.LENGTH_SHORT).show();
@@ -66,12 +65,18 @@ public class MainActivity extends AppCompatActivity {
     private void initializeAI() {
         new Thread(() -> {
             try {
-                // Model path (Assets se copy karna hoga ya direct use karna hoga)
-                File modelFile = new File(getFilesDir(), "gemma2-2b-it-cpu-int4.bin");
-                
-                // Note: Agar model assets me nahi hai, toh yahan download logic lagana padega.
-                // Abhi ke liye hum maan rahe hain ki model file phone me available hai.
-                
+                // 1. Target file in internal storage
+                File modelFile = new File(getFilesDir(), "gemma2-2b-it-cpu-int4.task");
+
+                // 2. Copy from Assets to Internal Storage if not already done
+                if (!modelFile.exists()) {
+                    runOnUiThread(() -> tvStatus.setText("Copying model to internal storage..."));
+                    copyAssetToFile("gemma2-2b-it-cpu-int4.task", modelFile);
+                }
+
+                runOnUiThread(() -> tvStatus.setText("Loading AI Model..."));
+
+                // 3. Initialize LLM
                 LlmInferenceOptions options = LlmInferenceOptions.builder()
                         .setModelPath(modelFile.getAbsolutePath())
                         .setMaxTokens(1000)
@@ -86,6 +91,18 @@ public class MainActivity extends AppCompatActivity {
         }).start();
     }
 
+    private void copyAssetToFile(String assetName, File destFile) throws Exception {
+        InputStream is = getAssets().open(assetName);
+        FileOutputStream os = new FileOutputStream(destFile);
+        byte[] buffer = new byte[8192];
+        int length;
+        while ((length = is.read(buffer)) > 0) {
+            os.write(buffer, 0, length);
+        }
+        os.close();
+        is.close();
+    }
+
     private void checkPermissionAndListen() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO}, REQ_AUDIO_PERM);
@@ -97,7 +114,7 @@ public class MainActivity extends AppCompatActivity {
     private void startListening() {
         Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
         intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
-        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-US"); // Hindi ke liye "hi-IN"
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-US");
         intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak now...");
         try {
             startActivityForResult(intent, REQ_SPEECH);
@@ -117,7 +134,6 @@ public class MainActivity extends AppCompatActivity {
                 tvUserText.setVisibility(View.VISIBLE);
                 tvAiText.setVisibility(View.GONE);
                 tvStatus.setText("AI is thinking...");
-                
                 generateAIResponse(userText);
             }
         }
@@ -126,18 +142,12 @@ public class MainActivity extends AppCompatActivity {
     private void generateAIResponse(String prompt) {
         new Thread(() -> {
             try {
-                // Format prompt for Chat Model
                 String formattedPrompt = "<start_of_turn>user\n" + prompt + "<end_of_turn>\n<start_of_turn>model\n";
-                
-                // Run Inference (Offline)
                 String response = llmInference.generateResponse(formattedPrompt);
-
                 runOnUiThread(() -> {
                     tvAiText.setText(response);
                     tvAiText.setVisibility(View.VISIBLE);
                     tvStatus.setText("Tap mic to speak again.");
-                    
-                    // Speak the response
                     tts.speak(response, TextToSpeech.QUEUE_FLUSH, null, "AI_RESPONSE");
                 });
             } catch (Exception e) {
