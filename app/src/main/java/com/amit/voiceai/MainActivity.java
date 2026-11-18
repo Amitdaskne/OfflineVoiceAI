@@ -66,12 +66,12 @@ public class MainActivity extends AppCompatActivity {
         new Thread(() -> {
             try {
                 // 1. Target file in internal storage
-                File modelFile = new File(getFilesDir(), "gemma-2b-it-gpu-int4.task");
+                File modelFile = new File(getFilesDir(), "gemma2-2b-it-cpu-int4.bin");
 
                 // 2. Copy from Assets to Internal Storage if not already done
                 if (!modelFile.exists()) {
                     runOnUiThread(() -> tvStatus.setText("Copying model to internal storage..."));
-                    copyAssetToFile("gemma-2b-it-gpu-int4.task", modelFile);
+                    copyAssetToFile("gemma2-2b-it-cpu-int4.bin", modelFile);
                 }
 
                 runOnUiThread(() -> tvStatus.setText("Loading AI Model..."));

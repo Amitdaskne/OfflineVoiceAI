@@ -8,15 +8,11 @@ jobs:
       - uses: actions/setup-java@v4
         with: { distribution: 'temurin', java-version: '17' }
       
-      - name: Download and Extract Gemma Task Model
+      - name: Download Gemma Model from Hugging Face
         run: |
           mkdir -p app/src/main/assets
-          # Kaggle se sahi .task archive download karo
-          curl -L -o gemma.tar.gz "https://www.kaggle.com/api/v1/models/google/gemma/tfLite/gemma-2b-it-gpu-int4/1/download"
-          # Extract karo
-          tar -xzf gemma.tar.gz
-          # Jo bhi .task file nikli hai usko assets me daal do
-          find . -name "*.task" -exec cp {} app/src/main/assets/gemma-2b-it-gpu-int4.task \;
+          # Hugging Face se direct download (No login required)
+          curl -L -o app/src/main/assets/gemma2-2b-it-cpu-int4.bin "https://huggingface.co/litert-community/Gemma2-2B-Instruct/resolve/main/gemma2-2b-it-cpu-int4.bin?download=true"
           ls -lh app/src/main/assets/
           
       - name: Build APK
